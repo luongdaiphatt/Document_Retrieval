@@ -29,8 +29,9 @@ def index():
 def search():
     data = request.get_json()
     query = data.get('query', '')
+    page = data.get('page', 1)
     if query:
-        results = perform_search(query)
+        results = perform_search(query, page_number=page)
         return jsonify(results=results)
     return jsonify(results=[])
 
