@@ -1,0 +1,221 @@
+{% extends "news/base.html" %}
+{% block content %}
+<div class="container justify-content-center align-items-center">
+    <h1 class="my-5 text-center">Báo Việt</h1>
+    <form action="search" role="search" method="post">
+        <div class="d-flex">
+            <input class="form-control me-2 rounded-pill" type="search" name="search" placeholder="Search something" aria-label="Search">
+            <button class="btn btn-outline-success" type="submit">Search</button>
+        </div>
+        <p class="mt-5 h4">Filters:</p>
+        <div class="row mt-5 p-3 border">
+            <div class="col-2 border-end">
+                <h5>By date:</h5>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="radio" value="" name="radio_Date" id="radio_Day">
+                    <label class="form-check-label" for="radio_Date">
+                        Trong ngày
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" value="" name="radio_Date" id="radio_Week">
+                    <label class="form-check-label" for="radio_Week">
+                        Trong tuần
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" value="" name="radio_Date" id="radio_Month">
+                    <label class="form-check-label" for="radio_Month">
+                        Trong tháng
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" value="" name="radio_Date" id="radio_Anytime" checked>
+                    <label class="form-check-label" for="radio_Anytime">
+                        Anytime
+                    </label>
+                </div>
+            </div>
+            <div class="col-4 mx-5 border-end">
+                <h5>By type:</h5>
+                <div class="row mt-3">
+                    <div class="col">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Thời sự" name="checkbox_Type" id="checkbox_News">
+                            <label class="form-check-label" for="checkbox_News">
+                                Thời sự
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Thế giới" name="checkbox_Type" id="checkbox_World">
+                            <label class="form-check-label" for="checkbox_World">
+                                Thế giới
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Thể thao" name="checkbox_Type" id="checkbox_Sport">
+                            <label class="form-check-label" for="checkbox_Sport">
+                                Thể thao
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Kinh doanh" name="checkbox_Type" id="checkbox_Business">
+                            <label class="form-check-label" for="checkbox_Business">
+                                Kinh doanh
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Sức khoẻ" name="checkbox_Type" id="checkbox_Health">
+                            <label class="form-check-label" for="checkbox_Health">
+                                Sức khoẻ
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Văn hoá" name="checkbox_Type" id="checkbox_Culture">
+                            <label class="form-check-label" for="checkbox_Culture">
+                                Văn hoá
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Công nghệ" name="checkbox_Type" id="checkbox_Technology">
+                            <label class="form-check-label" for="checkbox_Technology">
+                                Công nghệ
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Giải trí" name="checkbox_Type" id="checkbox_Business">
+                            <label class="form-check-label" for="checkbox_Entertainment">
+                                Giải trí
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <h5>Dummy col</h5>
+            </div>
+        </div>
+    </form>
+</div>    
+<p class="h4 container my-4">Mới</p>
+<div class="container">
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="following-tab" data-bs-toggle="tab" data-bs-target="#following" type="button" role="tab" aria-controls="following" aria-selected="true">Đang theo dõi</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="news-tab" data-bs-toggle="tab" data-bs-target="#news" type="button" role="tab" aria-controls="news" aria-selected="false">Thời sự</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="world-tab" data-bs-toggle="tab" data-bs-target="#world" type="button" role="tab" aria-controls="world" aria-selected="false">Thế giới</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active border-end border-start border-bottom text-center " id="following" role="tabpanel" aria-labelledby="following-tab">
+            <p class="h5 pt-3">Bạn chưa đăng nhập</p>
+            <p>Vui lòng đăng nhập để theo dõi nội dung các loại bài báo bạn quan tâm</p>
+            <a href="#" class="btn btn-primary mb-3">Đi tới trang đăng nhập</a>
+        </div>
+        <div class="tab-pane fade border-bottom border-end border-start" id="news" role="tabpanel" aria-labelledby="news-tab">
+            <div class="row p-3">
+                <div class="col">
+                    <div class="card">
+                        <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                        <div class="card-body">
+                            <h5 class="card-title">Card title</h5>
+                            <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                            <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="row">
+                        <div class="card">
+                            <div class="row">
+                                <div class="col">
+                                    <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="img-fluid rounded-start" alt="...">
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Title</h5>
+                                        <p class="card-text">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Eligendi unde quidem natus, voluptatem ut quisquam incidunt possimus sit iusto sunt!</p>
+                                        <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row row-cols-3">
+                        <div class="col">
+                            <div class="card">
+                                <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                                <div class="card-body">
+                                    <h5 class="card-title">Title</h5>
+                                    <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                                <div class="card-body">
+                                    <h5 class="card-title">Title</h5>
+                                    <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                                <div class="card-body">
+                                    <h5 class="card-title">Title</h5>
+                                    <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                                <div class="card-body">
+                                    <h5 class="card-title">Title</h5>
+                                    <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                                <div class="card-body">
+                                    <h5 class="card-title">Title</h5>
+                                    <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <img src="https://static-images.vnncdn.net/files/publish/2023/11/16/tuyen-viet-nam-philippines-13-1405.jpg" class="card-img-top" alt="...">
+                                <div class="card-body">
+                                    <h5 class="card-title">Title</h5>
+                                    <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="world" role="tabpanel" aria-labelledby="world-tab">
+            <div class="card m-2" style="width: 18rem;">
+                <img src="#" class="card-img-left" alt="...">
+                <div class="card-body">
+                    <h5 class="card-title">Tên tiêu đề 3</h5>
+                    <p class="card-text">Thông tin sơ lược nội dung bài báo.</p>
+                    <a href="#" class="btn btn-primary">Đọc chi tiết</a>
+                </div>
+            </div> 
+        </div>
+    </div>   
+</div>
+{% endblock content %}
