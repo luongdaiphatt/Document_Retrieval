@@ -23,7 +23,7 @@ special_characters = [
     '}', '~'
 ]
 rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"], save_dir= r'C:\Users\Admin\AppData\Local\Programs\Python\Python311\Lib\site-packages\py_vncorenlp')
-os.chdir(r'C:\Users\Admin\Desktop\New folder (13)\VNnSE_Flask\TF-IDF+Vietnamese-SBERT')
+os.chdir(r'CD:\UIT\Document_Retrieval\TF-IDF+Vietnamese-SBERT')
 
 def lower_text(text):
     ptext = text.lower()
