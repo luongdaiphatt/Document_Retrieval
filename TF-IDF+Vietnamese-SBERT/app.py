@@ -22,8 +22,9 @@ special_characters = [
     '?', '@', '[', '\\', ']', '^', '`', '{', '|',
     '}', '~'
 ]
-rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"], save_dir= r'C:\Users\Admin\AppData\Local\Programs\Python\Python311\Lib\site-packages\py_vncorenlp')
-os.chdir(r'CD:\UIT\Document_Retrieval\TF-IDF+Vietnamese-SBERT')
+# rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"], save_dir= r'C:\Users\Admin\AppData\Local\Programs\Python\Python311\Lib\site-packages\py_vncorenlp')
+# os.chdir(r'CD:\UIT\Document_Retrieval\TF-IDF+Vietnamese-SBERT')
+rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"])
 
 def lower_text(text):
     ptext = text.lower()
@@ -89,11 +90,11 @@ def submit():
 
 
 if __name__ == "__main__":
-    data = json.load(open(r'data\ArticlesNewspaper.json', 'r', encoding="utf-8"))
+    data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
     data_text = [i['title'] + " " + i['abstract'] for i in data]
     titles = [i['title'] for i in data]
-    stopwords = open(r"data\vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
-    prpfi = open(r"data\preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
+    stopwords = open(r"data/vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
+    prpfi = open(r"data/preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
     #test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
     tokenized_corpus = [doc.split(" ") for doc in prpfi]
     app.run(debug=True)
