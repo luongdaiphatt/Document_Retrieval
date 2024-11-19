@@ -47,6 +47,10 @@ def remove_special_characters(title):
     cleaned_title = ''.join(char for char in title if char not in special_characters)
     return cleaned_title
 
+def preprocess_text(text):
+    ptext = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(text))))
+    return ptext
+
 def TF_IDF(query):
     vectorizer = TfidfVectorizer()
     corpus_tfidf = vectorizer.fit_transform(data_text + [query])
@@ -80,8 +84,11 @@ def submit():
     global items, query, similarities, top_indices
     if request.method == "POST":
         query = request.form['search']
-        p_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(query))))
+        print("query", query)
+        p_query = preprocess_text(query)
+        print("p_query", p_query)
         top_indices = TF_IDF(p_query)
+        print("top_indices", top_indices)
         k_idx, similarities = SBERT(top_indices, query)
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     pagination = Pagination(page=page, per_page=per_page, total=len(items), css_framework='bootstrap5')
@@ -92,8 +99,10 @@ def submit():
 if __name__ == "__main__":
     data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
     data_text = [i['title'] + " " + i['abstract'] for i in data]
-    titles = [i['title'] for i in data]
+    # titles = [i['title'] for i in data]
     stopwords = open(r"data/vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
+    data_text = [preprocess_text(i) for i in data_text]
+    print("10 titles", data_text[:10])
     prpfi = open(r"data/preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
     #test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
     tokenized_corpus = [doc.split(" ") for doc in prpfi]
