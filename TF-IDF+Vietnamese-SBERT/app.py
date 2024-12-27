@@ -75,6 +75,33 @@ def SBERT(top_indices, query):
     items = k_idx
     return k_idx, cossimilarity
 
+def ndcg_at_k(scores, k):
+    dcg = sum((2**scores[i] - 1) / np.log2(i + 2) for i in range(k))
+    ideal_scores = sorted(scores, reverse=True)
+    idcg = sum((2**ideal_scores[i] - 1) / np.log2(i + 2) for i in range(k))
+    return dcg / idcg if idcg > 0 else 0
+
+@app.route("/submit_scores", methods=["POST"])
+def submit_scores():
+    scores = list(map(int, request.form.getlist('scores')))
+    k = len(scores)
+    ndcg_score = ndcg_at_k(scores, k)
+    
+    # Store the scores and nDCG value
+    with open('scores.json', 'a') as f:
+        f.write(json.dumps({'scores': scores, 'ndcg': ndcg_score, 'query': query, 'titles': [data[top_indices[i]]['title'] for i in items[:10]]}, ensure_ascii=False) + ',\n')
+    
+    return json.dumps({'ndcg': ndcg_score})
+    
+@app.route("/load_scores", methods=["GET"])
+def load_scores():
+    try:
+        with open('scores.json', 'r') as f:
+            data = json.load(f)
+        return json.dump(data)
+    except FileNotFoundError:
+        return json.dump({'error': 'No scores found'})
+
 @app.route("/")
 def home():
     return render_template("news/home.html")
@@ -95,6 +122,16 @@ def submit():
     k_idx_show = items[offset: offset + NUM_NEWS_PER_PAGE]
     return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=similarities, query=query, pagination=pagination, index=top_indices)
 
+@app.route("/api/search", methods=["POST"])
+def api_search():
+    global items, query, similarities, top_indices
+    if request.method == "POST":
+        query = request.json['search']
+        p_query = preprocess_text(query)
+        top_indices = TF_IDF(p_query)
+        k_idx, similarities = SBERT(top_indices, query)
+        results = [{"title": data[top_indices[i]]['title'], "abstract": data[top_indices[i]]['abstract']} for i in items]
+        return json.dumps(results, ensure_ascii=False)
 
 if __name__ == "__main__":
     data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
@@ -102,8 +139,8 @@ if __name__ == "__main__":
     # titles = [i['title'] for i in data]
     stopwords = open(r"data/vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
     data_text = [preprocess_text(i) for i in data_text]
-    print("10 titles", data_text[:10])
+    # print("10 titles", data_text[:10])
     prpfi = open(r"data/preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
-    #test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
+    # test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
     tokenized_corpus = [doc.split(" ") for doc in prpfi]
     app.run(debug=True)
