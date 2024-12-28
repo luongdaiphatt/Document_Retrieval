@@ -22,8 +22,8 @@ special_characters = [
     '?', '@', '[', '\\', ']', '^', '`', '{', '|',
     '}', '~'
 ]
-rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"], save_dir= r'C:\Users\Admin\AppData\Local\Programs\Python\Python311\Lib\site-packages\py_vncorenlp')
-os.chdir(r'CD:\UIT\Document_Retrieval\TF-IDF+Vietnamese-SBERT')
+
+rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"])
 
 def lower_text(text):
     ptext = text.lower()
@@ -45,6 +45,10 @@ def remove_stopwords(stopwords, title):
 def remove_special_characters(title):
     cleaned_title = ''.join(char for char in title if char not in special_characters)
     return cleaned_title
+
+def preprocess_text(text):
+    ptext = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(text))))
+    return ptext
 
 def TF_IDF(query):
     vectorizer = TfidfVectorizer()
@@ -70,6 +74,33 @@ def SBERT(top_indices, query):
     items = k_idx
     return k_idx, cossimilarity
 
+def ndcg_at_k(scores, k):
+    dcg = sum((2**scores[i] - 1) / np.log2(i + 2) for i in range(k))
+    ideal_scores = sorted(scores, reverse=True)
+    idcg = sum((2**ideal_scores[i] - 1) / np.log2(i + 2) for i in range(k))
+    return dcg / idcg if idcg > 0 else 0
+
+@app.route("/submit_scores", methods=["POST"])
+def submit_scores():
+    scores = list(map(int, request.form.getlist('scores')))
+    k = len(scores)
+    ndcg_score = ndcg_at_k(scores, k)
+    
+    # Store the scores and nDCG value
+    with open('nDCG/scores.json', 'a') as f:
+        f.write(json.dumps({'scores': scores, 'ndcg': ndcg_score, 'query': query, 'titles': [data[top_indices[i]]['title'] for i in items[:10]]}, ensure_ascii=False) + '\n')
+    
+    return json.dumps({'ndcg': ndcg_score})
+    
+@app.route("/load_scores", methods=["GET"])
+def load_scores():
+    try:
+        with open('nDCG/scores.json', 'r') as f:
+            data = json.load(f)
+        return json.dump(data)
+    except FileNotFoundError:
+        return json.dump({'error': 'No scores found'})
+
 @app.route("/")
 def home():
     return render_template("news/home.html")
@@ -79,21 +110,36 @@ def submit():
     global items, query, similarities, top_indices
     if request.method == "POST":
         query = request.form['search']
-        p_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(query))))
+        print("query", query)
+        p_query = preprocess_text(query)
+        print("p_query", p_query)
         top_indices = TF_IDF(p_query)
+        print("top_indices", top_indices)
         k_idx, similarities = SBERT(top_indices, query)
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     pagination = Pagination(page=page, per_page=per_page, total=len(items), css_framework='bootstrap5')
     k_idx_show = items[offset: offset + NUM_NEWS_PER_PAGE]
     return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=similarities, query=query, pagination=pagination, index=top_indices)
 
+@app.route("/api/search", methods=["POST"])
+def api_search():
+    global items, query, similarities, top_indices
+    if request.method == "POST":
+        query = request.json['search']
+        p_query = preprocess_text(query)
+        top_indices = TF_IDF(p_query)
+        k_idx, similarities = SBERT(top_indices, query)
+        results = [{"title": data[top_indices[i]]['title'], "abstract": data[top_indices[i]]['abstract']} for i in items]
+        return json.dumps(results, ensure_ascii=False)
 
 if __name__ == "__main__":
-    data = json.load(open(r'data\ArticlesNewspaper.json', 'r', encoding="utf-8"))
+    data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
     data_text = [i['title'] + " " + i['abstract'] for i in data]
-    titles = [i['title'] for i in data]
-    stopwords = open(r"data\vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
-    prpfi = open(r"data\preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
-    #test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
+    # titles = [i['title'] for i in data]
+    stopwords = open(r"data/vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
+    data_text = [preprocess_text(i) for i in data_text]
+    # print("10 titles", data_text[:10])
+    prpfi = open(r"data/preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
+    # test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
     tokenized_corpus = [doc.split(" ") for doc in prpfi]
     app.run(debug=True)
