@@ -22,8 +22,7 @@ special_characters = [
     '?', '@', '[', '\\', ']', '^', '`', '{', '|',
     '}', '~'
 ]
-# rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"], save_dir= r'C:\Users\Admin\AppData\Local\Programs\Python\Python311\Lib\site-packages\py_vncorenlp')
-# os.chdir(r'CD:\UIT\Document_Retrieval\TF-IDF+Vietnamese-SBERT')
+
 rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"])
 
 def lower_text(text):
@@ -88,15 +87,15 @@ def submit_scores():
     ndcg_score = ndcg_at_k(scores, k)
     
     # Store the scores and nDCG value
-    with open('scores.json', 'a') as f:
-        f.write(json.dumps({'scores': scores, 'ndcg': ndcg_score, 'query': query, 'titles': [data[top_indices[i]]['title'] for i in items[:10]]}, ensure_ascii=False) + ',\n')
+    with open('nDCG/scores.json', 'a') as f:
+        f.write(json.dumps({'scores': scores, 'ndcg': ndcg_score, 'query': query, 'titles': [data[top_indices[i]]['title'] for i in items[:10]]}, ensure_ascii=False) + '\n')
     
     return json.dumps({'ndcg': ndcg_score})
     
 @app.route("/load_scores", methods=["GET"])
 def load_scores():
     try:
-        with open('scores.json', 'r') as f:
+        with open('nDCG/scores.json', 'r') as f:
             data = json.load(f)
         return json.dump(data)
     except FileNotFoundError:
