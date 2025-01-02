@@ -1,20 +1,25 @@
-from flask import Flask, request, render_template
-from flask_paginate import Pagination, get_page_args
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
-import os
+from flask_paginate import Pagination, get_page_args
+from flask import Flask, request, render_template
+from transformers import AutoModel, AutoTokenizer
+from rank_bm25 import BM25Okapi
 import py_vncorenlp
-import json
 import numpy as np
+import pickle
+import torch
+import json
+import os
 
 app = Flask(__name__)
 
+# Các biến toàn cục
 NUM_NEWS_PER_PAGE = 10
 items = list()
 query = ""
-similarities=list()
-top_indices = list()
+similarities = list()
+top_indices_tf_idf = list()
 
 special_characters = [
     '!', '"', '#', '$', '%', '&', "'", '(', ')', '*',
@@ -23,8 +28,7 @@ special_characters = [
     '}', '~'
 ]
 
-rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"])
-
+# 1. Tiền xử lý văn bản
 def lower_text(text):
     ptext = text.lower()
     return ptext
@@ -50,30 +54,61 @@ def preprocess_text(text):
     ptext = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(text))))
     return ptext
 
-def TF_IDF(query):
-    vectorizer = TfidfVectorizer()
-    corpus_tfidf = vectorizer.fit_transform(data_text + [query])
-    cosine_similarities = cosine_similarity(corpus_tfidf[-1], corpus_tfidf[:-1])
-    top_indices = cosine_similarities.argsort()[0][::-1]
-    return top_indices
+def encode_phobert(corpus, max_length=256):
+    encoded_corpus = []
+    for text in corpus:
+        # Truncate the text to the maximum length
+        input_ids = torch.tensor([tokenizer.encode(text, max_length=max_length, truncation=True)]).to(device)
+        with torch.no_grad():
+            output = phobert(input_ids).pooler_output.cpu().numpy().flatten()
+        encoded_corpus.append(output)
+    return np.array(encoded_corpus)
 
-def SBERT(top_indices, query):
-    global items
-    corpus = [data_text[top_indices[i]] for i in range(50)]
-    prev_index = [top_indices[i] for i in range(50)]
-    model = SentenceTransformer('keepitreal/vietnamese-sbert')
-    encoded_corpus = model.encode(corpus)
-    encoded_query = model.encode(query)
+# 2. TF_IDF và SBERT tìm kiếm
+def TF_IDF_search(query, k=50):
+    vectorizer = TfidfVectorizer()
+    corpus_tfidf = vectorizer.fit_transform(tokenized_corpus + [query])
+    cosine_similarities = cosine_similarity(corpus_tfidf[-1], corpus_tfidf[:-1])[0]
+    top_indices = cosine_similarities.argsort()[::-1][:50]
+    top_similarities = cosine_similarities[top_indices]
+    return top_indices, top_similarities
+
+def SBERT_search(top_indices_tf_idf, query, k=50):
+    # Get the top k indices from the TF-IDF search
+    corpus = [tokenized_corpus[top_indices_tf_idf[i]] for i in range(k)]
+    encoded_corpus = sbert.encode(corpus)
+    encoded_query = sbert.encode(query)
     cossimilarity = []
     for i in range(encoded_corpus.shape[0]):
-        cossimilarity.append(encoded_corpus[i, :].dot(encoded_query) / (np.linalg.norm(encoded_corpus[i, :]) * np.linalg.norm(encoded_query)))
-    sorted_ids_data = np.argsort(np.array(cossimilarity))
-    sorted_ids = sorted_ids_data[::-1]
-    k = len(corpus)
-    k_idx = sorted_ids[0: k]
-    items = k_idx
-    return k_idx, cossimilarity
+        cossimilarity.append((i, encoded_corpus[i, :].dot(encoded_query) / (np.linalg.norm(encoded_corpus[i, :]) * np.linalg.norm(encoded_query))))
+    sorted_ids_data = sorted(cossimilarity, key=lambda x: x[1], reverse=True)
+    top_indices = [top_indices_tf_idf[i[0]] for i in sorted_ids_data]
+    top_similarities = [float(i[1]) for i in sorted_ids_data]
+    return top_indices, top_similarities
 
+# 3. BM25 và PhoBERT tìm kiếm
+# TODO: Fix the result (cháo ra áo báo cáo giáo...)
+def bm25_search(query, k=50):
+    split_query = query.split()
+    scores = bm25.get_scores(split_query)
+    top_indices = np.argsort(scores)[::-1][:k]
+    top_similarities = scores[top_indices]
+    return top_indices, top_similarities
+
+def phobert_search(top_indices_bm25, query, k=50):
+    query_ids = torch.tensor([tokenizer.encode(query)]).to(device)
+    with torch.no_grad():
+        encoded_query = phobert(query_ids).pooler_output.cpu().numpy().flatten()
+    similarities = np.dot(encoded_corpus_phobert[top_indices_bm25], encoded_query) / (
+        np.linalg.norm(encoded_corpus_phobert[top_indices_bm25], axis=1) * np.linalg.norm(encoded_query)
+    )
+    top_indices = np.argsort(similarities)[::-1][:k]
+    top_similarities = similarities[top_indices]
+    # map the indices back to the original indices (BM25)
+    top_indices = [top_indices_bm25[i] for i in top_indices]
+    return top_indices, top_similarities
+
+# 4. NDCG
 def ndcg_at_k(scores, k):
     dcg = sum((2**scores[i] - 1) / np.log2(i + 2) for i in range(k))
     ideal_scores = sorted(scores, reverse=True)
@@ -88,7 +123,7 @@ def submit_scores():
     
     # Store the scores and nDCG value
     with open('nDCG/scores.json', 'a') as f:
-        f.write(json.dumps({'scores': scores, 'ndcg': ndcg_score, 'query': query, 'titles': [data[top_indices[i]]['title'] for i in items[:10]]}, ensure_ascii=False) + '\n')
+        f.write(json.dumps({'scores': scores, 'ndcg': ndcg_score, 'query': query, 'titles': [data[top_indices_tf_idf[i]]['title'] for i in items[:10]]}, ensure_ascii=False) + '\n')
     
     return json.dumps({'ndcg': ndcg_score})
     
@@ -101,42 +136,132 @@ def load_scores():
     except FileNotFoundError:
         return json.dump({'error': 'No scores found'})
 
+# 5. Mô phỏng tìm kiếm
 @app.route("/")
 def home():
     return render_template("news/home.html")
 
 @app.route("/search", methods=["POST", "GET"])
 def submit():
-    global items, query, similarities, top_indices
+    global query, top_indices_tf_idf, tf_idf_scores, top_indices_sbert, sbert_scores, top_indices_bm25, bm25_scores, top_indices_phobert, phobert_scores
     if request.method == "POST":
         query = request.form['search']
-        print("query", query)
         p_query = preprocess_text(query)
-        print("p_query", p_query)
-        top_indices = TF_IDF(p_query)
-        print("top_indices", top_indices)
-        k_idx, similarities = SBERT(top_indices, query)
-    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    pagination = Pagination(page=page, per_page=per_page, total=len(items), css_framework='bootstrap5')
-    k_idx_show = items[offset: offset + NUM_NEWS_PER_PAGE]
-    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=similarities, query=query, pagination=pagination, index=top_indices)
 
+        ### TF-IDF
+        top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query, 50)
+        ### TF-IDF + SBERT
+        top_indices_sbert, sbert_scores = SBERT_search(top_indices_tf_idf, p_query)
+
+        ### BM25
+        top_indices_bm25, bm25_scores = bm25_search(p_query, 50)
+        ### BM25 + PhoBERT
+        top_indices_phobert, phobert_scores = phobert_search(top_indices_bm25, p_query)
+
+    # Chọn phương pháp tìm kiếm để hiển thị kết quả:
+    # * TF-IDF
+    # * TF-IDF + SBERT
+    # * BM25
+    # * BM25 + PhoBERT
+    # Bỏ comment để chọn phương pháp tìm kiếm (1 trong 4)
+
+    ### TF-IDF
+    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_tf_idf), css_framework='bootstrap5')
+    # k_idx_show = top_indices_tf_idf[offset: offset + NUM_NEWS_PER_PAGE]
+    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=tf_idf_scores, query=query, pagination=pagination)
+    ### TF-IDF + SBERT
+    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_sbert), css_framework='bootstrap5')
+    # k_idx_show = top_indices_sbert[offset: offset + NUM_NEWS_PER_PAGE]
+    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=sbert_scores, query=query, pagination=pagination)
+    ### BM25
+    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_bm25), css_framework='bootstrap5')
+    # k_idx_show = top_indices_bm25[offset: offset + NUM_NEWS_PER_PAGE]
+    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=bm25_scores, query=query, pagination=pagination)
+    ### BM25 + PhoBERT
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_phobert), css_framework='bootstrap5')
+    k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
+    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
+
+# 6. TODO: API dùng để so sánh các phương pháp tìm kiếm và đánh giá (Chưa hoàn thiện)
 @app.route("/api/search", methods=["POST"])
 def api_search():
-    global items, query, similarities, top_indices
+    global items, query, top_indices_tf_idf
     if request.method == "POST":
         query = request.json['search']
         p_query = preprocess_text(query)
-        top_indices = TF_IDF(p_query)
-        k_idx, similarities = SBERT(top_indices, query)
-        results = [{"title": data[top_indices[i]]['title'], "abstract": data[top_indices[i]]['abstract']} for i in items]
+        top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query)
+        k_idx, similarities = SBERT_search(top_indices_tf_idf, query, k=50)
+        results = [{"title": data[top_indices_tf_idf[i]]['title'], "abstract": data[top_indices_tf_idf[i]]['abstract']} for i in items]
         return json.dumps(results, ensure_ascii=False)
 
 if __name__ == "__main__":
-    data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
-    data_text = [i['title'] + " " + i['abstract'] for i in data]
+
+    rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"])
     stopwords = open(r"data/vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
-    data_text = [preprocess_text(i) for i in data_text]
-    prpfi = open(r"data/preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
-    tokenized_corpus = [doc.split(" ") for doc in prpfi]
+    data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
+
+    # Check if GPU is available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Download SBERT (save model if not exists)
+    if not os.path.exists('sbert_model'):
+        sbert = SentenceTransformer('keepitreal/vietnamese-sbert')
+        sbert.save('sbert_model')
+        print("SBERT downloaded")
+    else:
+        sbert = SentenceTransformer('sbert_model')
+        print("SBERT loaded")
+
+    # Download PhoBERT (save model if not exists)
+    if not os.path.exists('phobert_model'):
+        phobert = AutoModel.from_pretrained("vinai/phobert-base-v2", add_pooling_layer=True).to(device)
+        tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base-v2")
+        phobert.save_pretrained('phobert_model')
+        tokenizer.save_pretrained('phobert_model')
+        print("PhoBERT downloaded")
+    else:
+        phobert = AutoModel.from_pretrained('phobert_model').to(device)
+        tokenizer = AutoTokenizer.from_pretrained('phobert_model')
+        print("PhoBERT loaded")
+    
+    # Save preprocessed data if not exists
+    if not os.path.exists('data/tokenized_corpus.txt'):
+        data_text = [i['title'] + " " + i['abstract'] for i in data]
+        tokenized_corpus = [preprocess_text(corpus) for corpus in data_text]
+        with open('data/tokenized_corpus.txt', 'w', encoding='utf-8') as f:
+            for item in tokenized_corpus:
+                f.write("%s\n" % item)
+        print("Saved data")
+    else:
+        tokenized_corpus = open(r'data/tokenized_corpus.txt', 'r', encoding='utf-8').read().split("\n")
+        print("Data loaded")
+
+    # for BM25 search
+    # BM25 Training (save trained model if not exists)
+    if not os.path.exists('data/bm25_model.pkl'):
+        split_tokenized_corpus = [doc.split() for doc in tokenized_corpus]
+        bm25 = BM25Okapi(split_tokenized_corpus)
+        # Save the BM25 model
+        with open('data/bm25_model.pkl', 'wb') as bm25_file:
+            pickle.dump(bm25, bm25_file)
+        print("BM25 saved")
+    else:
+        with open('data/bm25_model.pkl', 'rb') as bm25_file:
+            bm25 = pickle.load(bm25_file)
+        print("BM25 loaded")
+
+    # for PhoBERT search
+    # Save the encoded corpus if not exists
+    if not os.path.exists('data/encoded_corpus_phobert.npy'):
+        encoded_corpus_phobert = encode_phobert(tokenized_corpus)
+        np.save('data/encoded_corpus_phobert.npy', encoded_corpus_phobert)
+        print("PhoBERT encoded corpus saved")
+    else:
+        encoded_corpus_phobert = np.load('data/encoded_corpus_phobert.npy')
+        print("PhoBERT encoded corpus loaded")
+
     app.run(debug=True)

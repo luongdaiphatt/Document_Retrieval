@@ -13,30 +13,30 @@
                 <div class="card my-3">
                     <div class="row">
                         <div class="col-3">
-                            <img src="{{data[index[i]].imglink}}" style="width:100%; height: 200px;" class="img-fluid rounded-start" alt="...">
+                            <img src="{{data[i].imglink}}" style="width:100%; height: 200px;" class="img-fluid rounded-start" alt="...">
                         </div>
                         <div class="col-9">
                             <div class="card-body">
                                 <h5 class="card-title">
-                                    <a class = "stretched-link link-underline link-dark link-underline-opacity-0 link-underline-opacity-75-hover" href="{{data[index[i]].link}}">
-                                        {% print(data[index[i]].title) %}
+                                    <a class = "stretched-link link-underline link-dark link-underline-opacity-0 link-underline-opacity-75-hover" href="{{data[i].link}}">
+                                        {% print(data[i].title) %}
                                     </a>
                                 </h5>
                                 <p class="card-text text-muted">
-                                    {%print("Date post: " + data[index[i]].time)%}
+                                    {%print("Date post: " + data[i].time)%}
                                 </p>
                                 <p class="card-text">
-                                    {%print(data[index[i]].abstract)%}
+                                    {%print(data[i].abstract)%}
                                 </p>
                                 <div class="d-flex justify-content-between">
                                     <p class="card-text">
-                                        {%print("cosine: "+similarities[i]|string)%}
+                                        {%print("cosine: " + similarities[loop.index0]|string)%}
                                     </p>
                                     <p class="card-text">
-                                        {%print("Thể loại: " + data[index[i]].topic) %}
+                                        {%print("Thể loại: " + data[i].topic) %}
                                     </p>
                                     <p class="card-text">
-                                        {%print("Nguồn: "+ data[index[i]].source)%}
+                                        {%print("Nguồn: "+ data[i].source)%}
                                     </p>
                                 </div>
                             </div>
