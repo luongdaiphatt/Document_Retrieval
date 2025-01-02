@@ -135,11 +135,8 @@ def api_search():
 if __name__ == "__main__":
     data = json.load(open(r'data/ArticlesNewspaper.json', 'r', encoding="utf-8"))
     data_text = [i['title'] + " " + i['abstract'] for i in data]
-    # titles = [i['title'] for i in data]
     stopwords = open(r"data/vietnamese-stopwords-dash.txt",'r',encoding='utf-8').read().split("\n")
     data_text = [preprocess_text(i) for i in data_text]
-    # print("10 titles", data_text[:10])
     prpfi = open(r"data/preprocessing.txt", 'r', encoding='utf-8').read().split("\n")
-    # test_query = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text("Ronaldo giàu cỡ nào?"))))
     tokenized_corpus = [doc.split(" ") for doc in prpfi]
     app.run(debug=True)
