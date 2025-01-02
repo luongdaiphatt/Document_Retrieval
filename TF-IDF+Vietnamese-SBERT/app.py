@@ -54,14 +54,34 @@ def preprocess_text(text):
     ptext = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(text))))
     return ptext
 
-def encode_phobert(corpus, max_length=256):
+# def encode_phobert(corpus, max_length=256):
+#     encoded_corpus = []
+#     for text in corpus:
+#         # Truncate the text to the maximum length
+#         input_ids = torch.tensor([tokenizer.encode(text, max_length=max_length, truncation=True)]).to(device)
+#         with torch.no_grad():
+#             output = phobert(input_ids).pooler_output.cpu().numpy().flatten()
+#         encoded_corpus.append(output)
+#     return np.array(encoded_corpus)
+
+def encode_phobert(corpus, max_length=256, batch_size=8):
     encoded_corpus = []
-    for text in corpus:
-        # Truncate the text to the maximum length
-        input_ids = torch.tensor([tokenizer.encode(text, max_length=max_length, truncation=True)]).to(device)
+    phobert.to(device)
+
+    for i in range(0, len(corpus), batch_size):
+        batch = corpus[i:i + batch_size]
+        encoded_inputs = tokenizer(
+            batch, max_length=max_length, truncation=True, padding=True, return_tensors="pt"
+        )
+        input_ids = encoded_inputs["input_ids"].to(device)
+        attention_mask = encoded_inputs["attention_mask"].to(device)
+
         with torch.no_grad():
-            output = phobert(input_ids).pooler_output.cpu().numpy().flatten()
-        encoded_corpus.append(output)
+            outputs = phobert(input_ids, attention_mask=attention_mask)
+            embeddings = outputs.pooler_output.cpu().numpy()
+
+        encoded_corpus.extend(embeddings)
+
     return np.array(encoded_corpus)
 
 # 2. TF_IDF và SBERT tìm kiếm
@@ -87,7 +107,6 @@ def SBERT_search(top_indices_tf_idf, query, k=50):
     return top_indices, top_similarities
 
 # 3. BM25 và PhoBERT tìm kiếm
-# TODO: Fix the result (cháo ra áo báo cáo giáo...)
 def bm25_search(query, k=50):
     split_query = query.split()
     scores = bm25.get_scores(split_query)
@@ -165,26 +184,34 @@ def submit():
     # * BM25 + PhoBERT
     # Bỏ comment để chọn phương pháp tìm kiếm (1 trong 4)
 
-    ### TF-IDF
+    # Các query tiêu biểu để đánh giá: 
+    # "cách kiếm tiền hiệu quả" 
+    # "nước nào bổ"
+    # "tác hại của chuối"
+
+    ### TF-IDF: ưu tiên những từ khóa đơn lẻ có số lần xuất hiện nhiều + thứ tự các từ query không ảnh hưởng
     # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_tf_idf), css_framework='bootstrap5')
     # k_idx_show = top_indices_tf_idf[offset: offset + NUM_NEWS_PER_PAGE]
     # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=tf_idf_scores, query=query, pagination=pagination)
-    ### TF-IDF + SBERT
-    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_sbert), css_framework='bootstrap5')
-    # k_idx_show = top_indices_sbert[offset: offset + NUM_NEWS_PER_PAGE]
-    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=sbert_scores, query=query, pagination=pagination)
-    ### BM25
+
+    ### TF-IDF + SBERT: ưu tiên những từ khóa quan trọng và từ liên quan (nước <-> đồ uống, bổ <-> tốt, ...) + thứ tự query ảnh hưởng
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_sbert), css_framework='bootstrap5')
+    k_idx_show = top_indices_sbert[offset: offset + NUM_NEWS_PER_PAGE]
+    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=sbert_scores, query=query, pagination=pagination)
+
+    ### BM25: những từ khóa quan trọng sẽ được tìm kiếm chính xác hơn và dựa trên phần nhiều về độ liên quan + thứ tự query không ảnh hưởng
     # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
     # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_bm25), css_framework='bootstrap5')
     # k_idx_show = top_indices_bm25[offset: offset + NUM_NEWS_PER_PAGE]
     # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=bm25_scores, query=query, pagination=pagination)
-    ### BM25 + PhoBERT
-    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_phobert), css_framework='bootstrap5')
-    k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
-    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
+
+    ### BM25 + PhoBERT: tương tự như TF-IDF + SBERT nhưng sử dụng PhoBERT thay vì SBERT (thỉnh thoảng cho kết quả không liên quan như khi search "cá lóc")
+    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_phobert), css_framework='bootstrap5')
+    # k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
+    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
 
 # 6. TODO: API dùng để so sánh các phương pháp tìm kiếm và đánh giá (Chưa hoàn thiện)
 @app.route("/api/search", methods=["POST"])
