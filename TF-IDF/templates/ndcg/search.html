@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluate Search Results</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Evaluate Search Results for Query: "{{ query }}"</h1>
+    <form action="/search" method="post">
+        <label for="query">Search Query:</label>
+        <input type="text" id="query" name="query" required>
+        <button type="submit">Search</button>
+    </form>
+    <form action="/submit" method="post">
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Article Title</th>
+                <th>Abstract</th>
+                <th>Relevance (0-5)</th>
+            </tr>
+            {% for i in range(titles|length) %}
+            <tr>
+                <td>{{ i + 1 }}</td>
+                <td>{{ titles[i] }}</td>
+                <td>{{ abstracts[i] }}</td>
+                <td>
+                    <input type="number" min="0" max="5" step="1" placeholder="0" value="0" name="scores" id="score{{ i }}" >
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <button type="submit">Submit Evaluation</button>
+    </form>
+</body>
+</html>
