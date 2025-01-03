@@ -1,0 +1,9 @@
+scikit-learn
+sentence-transformers
+flask-paginate
+flask
+transformers
+rank-bm25
+py-vncorenlp
+numpy
+torch

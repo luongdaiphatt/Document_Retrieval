@@ -1,0 +1,11 @@
+{% extends "news/base.html" %}
+{% block content %}
+<div class="container justify-content-center align-items-center">
+    <form action="search" role="search" method="post">
+        <div class="d-flex">
+            <input class="form-control me-2 rounded-pill" type="search" name="search" placeholder="Search something" aria-label="Search">
+            <button class="btn btn-outline-success" type="submit">Tìm kiếm</button>
+        </div>
+    </form>
+</div>    
+{% endblock content %}

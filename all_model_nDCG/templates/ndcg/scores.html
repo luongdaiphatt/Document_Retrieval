@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluate Search Results</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scores result and average score of each Models</h1>
+    <form action="/search" method="post">
+        <label for="query">Search Query:</label>
+        <input type="text" id="query" name="query" required>
+        <button type="submit">Search</button>
+    </form>
+    <h2>Score of this query</h2>
+    <table>
+        <tr>
+            <th>Model</th>
+            <th>Score</th>
+        </tr>
+        {% for model, score in results.items() %}
+        <tr>
+            <td>{{ model }}</td>
+            <td>{{ score }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Average Score</h2>
+    <table>
+        <tr>
+            <th>Model</th>
+            <th>Average Score</th>
+        </tr>
+        {% for model, avg_score in avg_results.items() %}
+        <tr>
+            <td>{{ model }}</td>
+            <td>{{ avg_score }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
