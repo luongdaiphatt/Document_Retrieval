@@ -203,7 +203,7 @@ def submit():
     k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
     return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
 
-# 6. API dùng để so sánh các phương pháp tìm kiếm và đánh giá (Chưa hoàn thiện)
+# 6. API dùng để so sánh các phương pháp tìm kiếm và đánh giá
 @app.route("/api/search", methods=["POST"])
 def api_search():
     global items, query, top_indices_tf_idf

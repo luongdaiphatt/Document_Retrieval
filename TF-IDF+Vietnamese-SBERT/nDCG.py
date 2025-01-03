@@ -39,8 +39,8 @@ def ndcg_at_k(scores, k):
     idcg = sum((2**ideal_scores[i] - 1) / np.log2(i + 2) for i in range(k))
     return dcg / idcg if idcg > 0 else 0
 
-def merge_indices(indices1, indices2, indices3, indices4):
-  return list(set(indices1 + indices2 + indices3 + indices4))
+def merge_indices(indices1, indices2):
+  return list(set(indices1 + indices2))
 
 @app.route('/')
 def index():
@@ -52,11 +52,11 @@ def search():
   query = request.form['query']
   # Search the query using the search engine (retrieve top 50 results)
   search_results = search_query(query, k=50)
-  # Merge indices from TF-IDF, BM25, TF-IDF+SBERT, BM25+PhoBERT
+  # Merge indices from TF-IDF, BM25. 
+  # Q: Why only TF-IDF, BM25? 
+  # A: Because Sbert and PhoBERT results are based on TF-IDF and BM25 top results
   merged_indices = merge_indices(search_results['tf-idf']['indices'], 
-                                 search_results['bm25']['indices'], 
-                                 search_results['tf-idf+sbert']['indices'], 
-                                 search_results['bm25+phobert']['indices'])
+                                 search_results['bm25']['indices'])
   tf_idf_in_merged = [merged_indices.index(idx) for idx in search_results['tf-idf']['indices']]
   tf_idf_sbert_in_merged = [merged_indices.index(idx) for idx in search_results['tf-idf+sbert']['indices']]
   bm25_in_merged = [merged_indices.index(idx) for idx in search_results['bm25']['indices']]
