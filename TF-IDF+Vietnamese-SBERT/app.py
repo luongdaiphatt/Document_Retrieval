@@ -54,16 +54,6 @@ def preprocess_text(text):
     ptext = remove_special_characters(remove_stopwords(stopwords, segment_text(lower_text(text))))
     return ptext
 
-# def encode_phobert(corpus, max_length=256):
-#     encoded_corpus = []
-#     for text in corpus:
-#         # Truncate the text to the maximum length
-#         input_ids = torch.tensor([tokenizer.encode(text, max_length=max_length, truncation=True)]).to(device)
-#         with torch.no_grad():
-#             output = phobert(input_ids).pooler_output.cpu().numpy().flatten()
-#         encoded_corpus.append(output)
-#     return np.array(encoded_corpus)
-
 def encode_phobert(corpus, max_length=256, batch_size=8):
     encoded_corpus = []
     phobert.to(device)
@@ -89,9 +79,9 @@ def TF_IDF_search(query, k=50):
     vectorizer = TfidfVectorizer()
     corpus_tfidf = vectorizer.fit_transform(tokenized_corpus + [query])
     cosine_similarities = cosine_similarity(corpus_tfidf[-1], corpus_tfidf[:-1])[0]
-    top_indices = cosine_similarities.argsort()[::-1][:50]
+    top_indices = cosine_similarities.argsort()[::-1][:k]
     top_similarities = cosine_similarities[top_indices]
-    return top_indices, top_similarities
+    return top_indices.tolist(), top_similarities.tolist()
 
 def SBERT_search(top_indices_tf_idf, query, k=50):
     # Get the top k indices from the TF-IDF search
@@ -110,22 +100,22 @@ def SBERT_search(top_indices_tf_idf, query, k=50):
 def bm25_search(query, k=50):
     split_query = query.split()
     scores = bm25.get_scores(split_query)
-    top_indices = np.argsort(scores)[::-1][:k]
+    top_indices = scores.argsort()[::-1][:k]
     top_similarities = scores[top_indices]
-    return top_indices, top_similarities
+    return top_indices.tolist(), top_similarities.tolist()
 
 def phobert_search(top_indices_bm25, query, k=50):
-    query_ids = torch.tensor([tokenizer.encode(query)]).to(device)
+    query_ids = tokenizer.encode(query, max_length=256, truncation=True, padding=True, return_tensors="pt").to(device)
     with torch.no_grad():
         encoded_query = phobert(query_ids).pooler_output.cpu().numpy().flatten()
     similarities = np.dot(encoded_corpus_phobert[top_indices_bm25], encoded_query) / (
         np.linalg.norm(encoded_corpus_phobert[top_indices_bm25], axis=1) * np.linalg.norm(encoded_query)
     )
-    top_indices = np.argsort(similarities)[::-1][:k]
+    top_indices = similarities.argsort()[::-1][:k]
     top_similarities = similarities[top_indices]
     # map the indices back to the original indices (BM25)
     top_indices = [top_indices_bm25[i] for i in top_indices]
-    return top_indices, top_similarities
+    return top_indices, top_similarities.tolist()
 
 # 4. NDCG
 def ndcg_at_k(scores, k):
@@ -196,10 +186,10 @@ def submit():
     # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=tf_idf_scores, query=query, pagination=pagination)
 
     ### TF-IDF + SBERT: ưu tiên những từ khóa quan trọng và từ liên quan (nước <-> đồ uống, bổ <-> tốt, ...) + thứ tự query ảnh hưởng
-    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_sbert), css_framework='bootstrap5')
-    k_idx_show = top_indices_sbert[offset: offset + NUM_NEWS_PER_PAGE]
-    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=sbert_scores, query=query, pagination=pagination)
+    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_sbert), css_framework='bootstrap5')
+    # k_idx_show = top_indices_sbert[offset: offset + NUM_NEWS_PER_PAGE]
+    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=sbert_scores, query=query, pagination=pagination)
 
     ### BM25: những từ khóa quan trọng sẽ được tìm kiếm chính xác hơn và dựa trên phần nhiều về độ liên quan + thứ tự query không ảnh hưởng
     # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
@@ -208,21 +198,49 @@ def submit():
     # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=bm25_scores, query=query, pagination=pagination)
 
     ### BM25 + PhoBERT: tương tự như TF-IDF + SBERT nhưng sử dụng PhoBERT thay vì SBERT (thỉnh thoảng cho kết quả không liên quan như khi search "cá lóc")
-    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_phobert), css_framework='bootstrap5')
-    # k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
-    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_phobert), css_framework='bootstrap5')
+    k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
+    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
 
-# 6. TODO: API dùng để so sánh các phương pháp tìm kiếm và đánh giá (Chưa hoàn thiện)
+# 6. API dùng để so sánh các phương pháp tìm kiếm và đánh giá (Chưa hoàn thiện)
 @app.route("/api/search", methods=["POST"])
 def api_search():
     global items, query, top_indices_tf_idf
     if request.method == "POST":
         query = request.json['search']
+        if 'k' in request.json:
+            k = request.json['k']
+        else:
+            k = 20
+        # print(query)
         p_query = preprocess_text(query)
-        top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query)
-        k_idx, similarities = SBERT_search(top_indices_tf_idf, query, k=50)
-        results = [{"title": data[top_indices_tf_idf[i]]['title'], "abstract": data[top_indices_tf_idf[i]]['abstract']} for i in items]
+
+        top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query,k)
+        top_indices_sbert, sbert_scores = SBERT_search(top_indices_tf_idf, p_query,k)
+
+        top_indices_bm25, bm25_scores = bm25_search(p_query,k)
+        top_indices_phobert, phobert_scores = phobert_search(top_indices_bm25, p_query,k)
+
+        results = {
+            "tf-idf": {
+                "indices": top_indices_tf_idf,
+                "scores": tf_idf_scores
+            },
+            "tf-idf+sbert": {
+                "indices": top_indices_sbert,
+                "scores": sbert_scores
+            },
+            "bm25": {
+                "indices": top_indices_bm25,
+                "scores": bm25_scores
+            },
+            "bm25+phobert": {
+                "indices": top_indices_phobert,
+                "scores": phobert_scores
+            }
+        }
+
         return json.dumps(results, ensure_ascii=False)
 
 if __name__ == "__main__":
