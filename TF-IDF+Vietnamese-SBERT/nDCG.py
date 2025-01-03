@@ -1,11 +1,12 @@
-import requests
-import os
-import json
 from flask import Flask, render_template, request
 import numpy as np
+import requests
+import json
+import os
 
 # RUN THIS AFTER RUNNING THE SEARCH ENGINE (app.py)
 # This script is used to calculate nDCG@k for the search engine at http://localhost:5001
+# Scores are saved in nDCG/scores.json
 
 app = Flask(__name__)
 
@@ -38,8 +39,8 @@ def ndcg_at_k(scores, k):
     idcg = sum((2**ideal_scores[i] - 1) / np.log2(i + 2) for i in range(k))
     return dcg / idcg if idcg > 0 else 0
 
-def merge_indices(indices1, indices2):
-  return list(set(indices1 + indices2))
+def merge_indices(indices1, indices2, indices3, indices4):
+  return list(set(indices1 + indices2 + indices3 + indices4))
 
 @app.route('/')
 def index():
@@ -49,9 +50,13 @@ def index():
 def search():
   global tf_idf_in_merged, tf_idf_sbert_in_merged, bm25_in_merged, bm25_phobert_in_merged, merged_indices, query, titles, abstracts
   query = request.form['query']
-  search_results = search_query(query)
-  # Merge indices from TF-IDF and BM25 without duplicates
-  merged_indices = merge_indices(search_results['tf-idf']['indices'], search_results['bm25']['indices'])
+  # Search the query using the search engine (retrieve top 50 results)
+  search_results = search_query(query, k=50)
+  # Merge indices from TF-IDF, BM25, TF-IDF+SBERT, BM25+PhoBERT
+  merged_indices = merge_indices(search_results['tf-idf']['indices'], 
+                                 search_results['bm25']['indices'], 
+                                 search_results['tf-idf+sbert']['indices'], 
+                                 search_results['bm25+phobert']['indices'])
   tf_idf_in_merged = [merged_indices.index(idx) for idx in search_results['tf-idf']['indices']]
   tf_idf_sbert_in_merged = [merged_indices.index(idx) for idx in search_results['tf-idf+sbert']['indices']]
   bm25_in_merged = [merged_indices.index(idx) for idx in search_results['bm25']['indices']]
