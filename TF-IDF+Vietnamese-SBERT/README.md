@@ -4,6 +4,12 @@
 * Folder sbert_model sẽ xuất hiện sau khi chạy app.py (để lưu sbert model)
 * Một số datafile sẽ thay đổi/xuất hiện bên trong folder data để lưu các data đã xử lý, tiết kiệm thời gian khi chạy lần sau. Xóa các file tương ứng nếu muốn preprocess lại data.
 
+### Đánh giá các model sơ bộ:
+1. TF-IDF + Vietnamese SBERT (cho kết quả tốt nhất)
+2. BM25 + PhoBERT
+3. BM25
+4. TF-IDF
+
 ### Cách chạy:
 * Lưu ý: Cần cài đặt Java để sử dụng VnCoreNLP, và chạy ngay trong thư mục TF-IDF+Vietnamese-SBERT (để không bị lỗi về đường dẫn)
 1. Cài đặt các thư viện cần thiết:
