@@ -253,7 +253,7 @@ def api_search():
 
 if __name__ == "__main__":
 
-    rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"])
+    rdrsegmenter = py_vncorenlp.VnCoreNLP(annotators=["wseg"], save_dir=parent_dir)
 
     stopwords_path = os.path.join(data_dir, 'vietnamese-stopwords-dash.txt')
     if os.path.exists(stopwords_path):
