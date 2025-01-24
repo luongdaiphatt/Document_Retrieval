@@ -1,11 +1,48 @@
 {% extends "news/base.html" %}
 {% block content %}
 <div class="container justify-content-center align-items-center">
-    <form action="search" role="search" method="post">
+    <form method="post" action="search" role="search" class="p-3 border rounded shadow-sm">
         <div class="d-flex">
             <input class="form-control me-2 rounded-pill" type="search" name="search" placeholder="Search something" aria-label="Search">
             <button class="btn btn-outline-success" type="submit">Tìm kiếm</button>
         </div>
+        <div class="mb-3">
+            <label for="model-selection" class="form-label">Chọn mô hình tìm kiếm:</label>
+            <select id="model-selection" name="model" class="form-select">
+                <option value="tfidf">TF-IDF</option>
+                <option value="tfidf_sbert">TF-IDF + SBERT</option>
+                <option value="bm25">BM25</option>
+                <option value="bm25_phobert">BM25 + PhoBERT</option>
+            </select>
+        </div>
+        
     </form>
+    <script>
+    const searchInput = document.getElementById('search-query');
+    const suggestionList = document.getElementById('suggestions');
+
+    searchInput.addEventListener('input', async function () {
+        const query = searchInput.value;
+        if (query.length < 2) return; // Chỉ bắt đầu gợi ý sau khi nhập 2 ký tự
+
+        try {
+            const response = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&q=${query}`);
+            const data = await response.json();
+            
+            // Xóa các gợi ý cũ
+            suggestionList.innerHTML = '';
+
+            // Thêm các gợi ý mới vào datalist
+            data[1].forEach(suggestion => {
+                const option = document.createElement('option');
+                option.value = suggestion; // Gợi ý sẽ xuất hiện dưới dạng text
+                suggestionList.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching suggestions:', error);
+        }
+    });
+</script>
+
 </div>    
 {% endblock content %}

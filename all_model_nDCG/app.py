@@ -8,6 +8,7 @@ from rank_bm25 import BM25Okapi
 import py_vncorenlp
 import numpy as np
 import pickle
+import time
 import torch
 import json
 import sys
@@ -162,53 +163,56 @@ def submit():
     global query, top_indices_tf_idf, tf_idf_scores, top_indices_sbert, sbert_scores, top_indices_bm25, bm25_scores, top_indices_phobert, phobert_scores
     if request.method == "POST":
         query = request.form['search']
+        model = request.form['model']  # Lấy thông tin mô hình từ form
         p_query = preprocess_text(query)
+        model_name =''
+        execution_time = ''
+        # Chạy tìm kiếm với mô hình tương ứng
+        if model == "tf-idf":
+            start_time = time.time()
+            top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query, 50)
+            results = top_indices_tf_idf
+            similarities = tf_idf_scores
+            endtime = time.time()
+            model_name ='TF-IDF'
+            execution_time = round(endtime-start_time, 2)
+        elif model == "tf-idf-sbert":
+            start_time = time.time()
+            top_indices_tf_idf, _ = TF_IDF_search(p_query, 50)
+            top_indices_sbert, sbert_scores = SBERT_search(top_indices_tf_idf, p_query)
+            results = top_indices_sbert
+            similarities = sbert_scores
+            model_name ='TF-IDF + VietnameseSbert'
+            endtime = time.time()
+            model_name ='TF-IDF'
+            execution_time = round(endtime-start_time, 2)
+        elif model == "bm25":
+            start_time = time.time()
+            top_indices_bm25, bm25_scores = bm25_search(p_query, 50)
+            results = top_indices_bm25
+            similarities = bm25_scores
+            model_name = 'BM25'
+            endtime = time.time()
+            model_name ='TF-IDF'
+            execution_time = round(endtime-start_time, 2)
+        elif model == "bm25-phobert":
+            start_time = time.time()
+            top_indices_bm25, _ = bm25_search(p_query, 50)
+            top_indices_phobert, phobert_scores = phobert_search(top_indices_bm25, p_query)
+            results = top_indices_phobert
+            similarities = phobert_scores
+            model_name = 'BM25 + PhoBert'
+            endtime = time.time()
+            model_name ='TF-IDF'
+            execution_time = round(endtime-start_time, 2)
+        else:
+            return "Invalid model selection", 400
+        # Phân trang kết quả
+        page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+        pagination = Pagination(page=page, per_page=per_page, total=len(results), css_framework='bootstrap5')
+        k_idx_show = results[offset: offset + NUM_NEWS_PER_PAGE]
 
-        ### TF-IDF
-        top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query, 50)
-        ### TF-IDF + SBERT
-        top_indices_sbert, sbert_scores = SBERT_search(top_indices_tf_idf, p_query)
-
-        ### BM25
-        top_indices_bm25, bm25_scores = bm25_search(p_query, 50)
-        ### BM25 + PhoBERT
-        top_indices_phobert, phobert_scores = phobert_search(top_indices_bm25, p_query)
-
-    # Chọn phương pháp tìm kiếm để hiển thị kết quả:
-    # * TF-IDF
-    # * TF-IDF + SBERT
-    # * BM25
-    # * BM25 + PhoBERT
-    # Bỏ comment để chọn phương pháp tìm kiếm (1 trong 4)
-
-    # Các query tiêu biểu để đánh giá: 
-    # "cách kiếm tiền hiệu quả" 
-    # "nước nào bổ"
-    # "tác hại của chuối"
-
-    ### TF-IDF: ưu tiên những từ khóa đơn lẻ có số lần xuất hiện nhiều + thứ tự các từ query không ảnh hưởng
-    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_tf_idf), css_framework='bootstrap5')
-    # k_idx_show = top_indices_tf_idf[offset: offset + NUM_NEWS_PER_PAGE]
-    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=tf_idf_scores, query=query, pagination=pagination)
-
-    ### TF-IDF + SBERT: ưu tiên những từ khóa quan trọng và từ liên quan (nước <-> đồ uống, bổ <-> tốt, ...) + thứ tự query ảnh hưởng
-    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_sbert), css_framework='bootstrap5')
-    # k_idx_show = top_indices_sbert[offset: offset + NUM_NEWS_PER_PAGE]
-    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=sbert_scores, query=query, pagination=pagination)
-
-    ### BM25: những từ khóa quan trọng sẽ được tìm kiếm chính xác hơn và dựa trên phần nhiều về độ liên quan + thứ tự query không ảnh hưởng
-    # page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    # pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_bm25), css_framework='bootstrap5')
-    # k_idx_show = top_indices_bm25[offset: offset + NUM_NEWS_PER_PAGE]
-    # return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=bm25_scores, query=query, pagination=pagination)
-
-    ### BM25 + PhoBERT: tương tự như TF-IDF + SBERT nhưng sử dụng PhoBERT thay vì SBERT (thỉnh thoảng cho kết quả không liên quan như khi search "cá lóc")
-    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    pagination = Pagination(page=page, per_page=per_page, total=len(top_indices_phobert), css_framework='bootstrap5')
-    k_idx_show = top_indices_phobert[offset: offset + NUM_NEWS_PER_PAGE]
-    return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=phobert_scores, query=query, pagination=pagination)
+        return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=similarities, query=query, model_name = model_name, executiton_time= execution_time, pagination=pagination)
 
 # 6. API dùng để so sánh các phương pháp tìm kiếm và đánh giá
 @app.route("/api/search", methods=["POST"])

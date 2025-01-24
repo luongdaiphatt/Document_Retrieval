@@ -1,13 +1,24 @@
 {% extends "news/base.html" %}
 {% block content %}
     <div class="container my-3">
-        <form role="search" action="search" method="post">
+        <form method="post" action="search" role="search" class="p-3 border rounded shadow-sm">
             <div class="d-flex">
-                <input class="form-control me-2 rounded-pill" type="search" name="search" placeholder="Tìm kiếm" aria-label="Search">
-                <button class="btn btn-outline-success" type="submit">Search</button>
+                <input class="form-control me-2 rounded-pill" type="search" name="search" placeholder="Search something" aria-label="Search">
+                <button class="btn btn-outline-success" type="submit">Tìm kiếm</button>
             </div>
+            <div class="mb-3">
+                <label for="model-selection" class="form-label">Chọn mô hình tìm kiếm:</label>
+                <select id="model-selection" name="model" class="form-select">
+                    <option value="tfidf">TF-IDF</option>
+                    <option value="tfidf_sbert">TF-IDF + SBERT</option>
+                    <option value="bm25">BM25</option>
+                    <option value="bm25_phobert">BM25 + PhoBERT</option>
+                </select>
+            </div>
+            
         </form>
-        <p class="h3 my-3">Kết quả tìm kiếm cho {{query}}:</p>
+            <p class="h3 my-3">Kết quả tìm kiếm cho "{{query}}" bằng mô hình {{model_name}}: </p>
+            <p class="h3 my-3">Thời gian thực thi:  {{execution_time}}s: </p>
         <div class="flex-container">
             {% for i in k_idx %}
                 <div class="card my-3">
