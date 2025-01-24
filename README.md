@@ -35,7 +35,7 @@ cao hiệu quả tìm kiếm. TF-IDF và BM25 đảm bảo xử lý từ khóa n
 4. TF-IDF
 
 <h3>How to use</h3>
-### Cách chạy:
+
 * Khuyến khích chạy flask app trong môi trường ảo (virtual environment)
 
 #### 1. Cài đặt các thư viện cần thiết:
