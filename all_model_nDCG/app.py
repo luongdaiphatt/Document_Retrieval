@@ -168,7 +168,7 @@ def submit():
         model_name =''
         execution_time = ''
         # Chạy tìm kiếm với mô hình tương ứng
-        if model == "tf-idf":
+        if model == "tfidf":
             start_time = time.time()
             top_indices_tf_idf, tf_idf_scores = TF_IDF_search(p_query, 50)
             results = top_indices_tf_idf
@@ -176,7 +176,7 @@ def submit():
             endtime = time.time()
             model_name ='TF-IDF'
             execution_time = round(endtime-start_time, 2)
-        elif model == "tf-idf-sbert":
+        elif model == "tfidf_sbert":
             start_time = time.time()
             top_indices_tf_idf, _ = TF_IDF_search(p_query, 50)
             top_indices_sbert, sbert_scores = SBERT_search(top_indices_tf_idf, p_query)
@@ -184,7 +184,6 @@ def submit():
             similarities = sbert_scores
             model_name ='TF-IDF + VietnameseSbert'
             endtime = time.time()
-            model_name ='TF-IDF'
             execution_time = round(endtime-start_time, 2)
         elif model == "bm25":
             start_time = time.time()
@@ -193,9 +192,8 @@ def submit():
             similarities = bm25_scores
             model_name = 'BM25'
             endtime = time.time()
-            model_name ='TF-IDF'
             execution_time = round(endtime-start_time, 2)
-        elif model == "bm25-phobert":
+        elif model == "bm25_phobert":
             start_time = time.time()
             top_indices_bm25, _ = bm25_search(p_query, 50)
             top_indices_phobert, phobert_scores = phobert_search(top_indices_bm25, p_query)
@@ -203,7 +201,6 @@ def submit():
             similarities = phobert_scores
             model_name = 'BM25 + PhoBert'
             endtime = time.time()
-            model_name ='TF-IDF'
             execution_time = round(endtime-start_time, 2)
         else:
             return "Invalid model selection", 400
@@ -212,7 +209,7 @@ def submit():
         pagination = Pagination(page=page, per_page=per_page, total=len(results), css_framework='bootstrap5')
         k_idx_show = results[offset: offset + NUM_NEWS_PER_PAGE]
 
-        return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=similarities, query=query, model_name = model_name, executiton_time= execution_time, pagination=pagination)
+        return render_template("news/search.html", k_idx=k_idx_show, data=data, similarities=similarities, query=query, model_name = model_name, execution_time= execution_time, pagination=pagination)
 
 # 6. API dùng để so sánh các phương pháp tìm kiếm và đánh giá
 @app.route("/api/search", methods=["POST"])
